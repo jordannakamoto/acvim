@@ -50,6 +50,55 @@ check_prerequisites() {
     print_success "Prerequisites check passed"
 }
 
+# Install optional dependencies
+install_dependencies() {
+    print_status "Installing optional dependencies..."
+
+    # Check for Homebrew on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v brew &> /dev/null; then
+            # Install ripgrep if not present (used by telescope)
+            if ! command -v rg &> /dev/null; then
+                print_status "Installing ripgrep via Homebrew..."
+                if brew install ripgrep; then
+                    print_success "Ripgrep installed successfully"
+                else
+                    print_warning "Failed to install ripgrep. You can install it manually with: brew install ripgrep"
+                fi
+            else
+                print_success "Ripgrep already installed"
+            fi
+
+            # Install fd if not present (used by telescope)
+            if ! command -v fd &> /dev/null; then
+                print_status "Installing fd via Homebrew..."
+                if brew install fd; then
+                    print_success "fd installed successfully"
+                else
+                    print_warning "Failed to install fd. You can install it manually with: brew install fd"
+                fi
+            else
+                print_success "fd already installed"
+            fi
+        else
+            print_warning "Homebrew not found. Please install optional dependencies manually:"
+            echo "  - ripgrep: https://github.com/BurntSushi/ripgrep"
+            echo "  - fd: https://github.com/sharkdp/fd"
+        fi
+    else
+        print_warning "Non-macOS system detected. Please install optional dependencies manually:"
+        echo "  - ripgrep: https://github.com/BurntSushi/ripgrep"
+        echo "  - fd: https://github.com/sharkdp/fd"
+        echo ""
+        echo "Common package managers:"
+        echo "  Ubuntu/Debian: sudo apt install ripgrep fd-find"
+        echo "  Fedora: sudo dnf install ripgrep fd-find"
+        echo "  Arch: sudo pacman -S ripgrep fd"
+    fi
+
+    print_success "Dependencies installation completed"
+}
+
 # Create directories
 create_directories() {
     print_status "Creating ACVim directories..."
@@ -117,6 +166,7 @@ main() {
     echo ""
 
     check_prerequisites
+    install_dependencies
     create_directories
     install_launcher
     install_config
