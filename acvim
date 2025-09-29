@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# ACVim - A modeless Neovim fork
+# This script launches Neovim with an isolated configuration that won't conflict with your regular Neovim setup
+
+# Set custom config and data directories to isolate this instance
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_DATA_HOME="$HOME/.local/share/acvim"
+export XDG_STATE_HOME="$HOME/.local/state/acvim"
+export XDG_CACHE_HOME="$HOME/.cache/acvim"
+
+# Create data directories if they don't exist
+mkdir -p "$XDG_DATA_HOME"
+mkdir -p "$XDG_STATE_HOME"
+mkdir -p "$XDG_CACHE_HOME"
+
+# Launch Neovim with the acvim configuration
+exec nvim -u "$HOME/.config/acvim/init.lua" "$@"
