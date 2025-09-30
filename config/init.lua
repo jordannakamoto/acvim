@@ -734,6 +734,20 @@ require("lazy").setup({
           -- |> File Switching & Text Search                            ===
           --=================================================================
           {
+            "<C-_>",
+            "<Cmd>Oil<CR>",
+            description = "[File] Open oil.nvim file explorer (Ctrl+-)",
+            mode = { "n", "i", "v" },
+            opts = opts_silent,
+          },
+          {
+            "<C-e>",
+            "<Cmd>Oil<CR>",
+            description = "[File] Open oil.nvim file explorer (Ctrl+E)",
+            mode = { "n", "i", "v" },
+            opts = opts_silent,
+          },
+          {
             "<C-o>",
             "<Cmd>Telescope find_files<CR>",
             description = "[File] Find and open files",
@@ -767,6 +781,10 @@ require("lazy").setup({
 
         commands = {
           -- File Operations
+          {
+            ":Oil",
+            description = "[File] Open oil.nvim file explorer",
+          },
           {
             ":NvimTreeToggle",
             description = "[File] Toggle file explorer",
@@ -822,6 +840,10 @@ require("lazy").setup({
           {
             ":Legendary",
             description = "[System] Open command palette",
+          },
+          {
+            ":Mason",
+            description = "[LSP] Install/manage language servers",
           },
           {
             ":colorscheme catppuccin",
@@ -930,6 +952,44 @@ require("lazy").setup({
             end,
             description = "[ACVim] Copy visual selection to clipboard",
           },
+
+          -- LSP functions
+          {
+            description = "[LSP] Go to definition",
+            function() vim.lsp.buf.definition() end,
+          },
+          {
+            description = "[LSP] Show hover information",
+            function() vim.lsp.buf.hover() end,
+          },
+          {
+            description = "[LSP] Find references",
+            function() vim.lsp.buf.references() end,
+          },
+          {
+            description = "[LSP] Rename symbol",
+            function() vim.lsp.buf.rename() end,
+          },
+          {
+            description = "[LSP] Show code actions",
+            function() vim.lsp.buf.code_action() end,
+          },
+          {
+            description = "[LSP] Show diagnostics",
+            function() vim.diagnostic.open_float() end,
+          },
+          {
+            description = "[LSP] Go to previous diagnostic",
+            function() vim.diagnostic.goto_prev() end,
+          },
+          {
+            description = "[LSP] Go to next diagnostic",
+            function() vim.diagnostic.goto_next() end,
+          },
+          {
+            description = "[LSP] Format document",
+            function() vim.lsp.buf.format({ async = true }) end,
+          },
         },
 
         -- UI settings
@@ -971,6 +1031,310 @@ require("lazy").setup({
         vim.cmd("normal! <Esc>")
         require("legendary").find()
       end, { desc = "Open command palette" })
+    end,
+  },
+
+  -- oil.nvim - file explorer as a buffer
+  {
+    "stevearc/oil.nvim",
+    dependencies = { "nvim-tree/nvim-web-devicons" },
+    config = function()
+      require("oil").setup({
+        default_file_explorer = false,
+        columns = {
+          "icon",
+        },
+        view_options = {
+          show_hidden = true,
+        },
+        keymaps = {
+          ["<CR>"] = "actions.select",
+          ["-"] = "actions.parent",
+          ["_"] = "actions.open_cwd",
+          ["`"] = "actions.cd",
+          ["~"] = "actions.tcd",
+          ["g."] = "actions.toggle_hidden",
+        },
+      })
+
+      -- Add direct keymaps after setup
+      vim.keymap.set("n", "<C-e>", "<cmd>Oil<cr>", { desc = "Open oil file explorer" })
+      vim.keymap.set("i", "<C-e>", "<cmd>Oil<cr>", { desc = "Open oil file explorer" })
+      vim.keymap.set("v", "<C-e>", "<cmd>Oil<cr>", { desc = "Open oil file explorer" })
+    end,
+  },
+
+  -- mason.nvim - LSP installer with UI
+  {
+    "williamboman/mason.nvim",
+    cmd = "Mason",
+    build = ":MasonUpdate",
+    config = function()
+      require("mason").setup({
+        ui = {
+          icons = {
+            package_installed = "✓",
+            package_pending = "➜",
+            package_uninstalled = "✗"
+          }
+        }
+      })
+    end,
+  },
+
+  -- mason-lspconfig - Bridge between mason and lspconfig
+  {
+    "williamboman/mason-lspconfig.nvim",
+    dependencies = { "williamboman/mason.nvim" },
+    config = function()
+      require("mason-lspconfig").setup({
+        automatic_installation = false,
+      })
+    end,
+  },
+
+  -- nvim-lspconfig - LSP configuration
+  {
+    "neovim/nvim-lspconfig",
+    event = { "BufReadPre", "BufNewFile" },
+    dependencies = {
+      "hrsh7th/cmp-nvim-lsp",
+      "williamboman/mason.nvim",
+      "williamboman/mason-lspconfig.nvim",
+    },
+    config = function()
+      local lspconfig = require("lspconfig")
+      local capabilities = require("cmp_nvim_lsp").default_capabilities()
+
+      -- Setup language servers
+      -- TypeScript/JavaScript
+      if vim.fn.executable("typescript-language-server") == 1 then
+        lspconfig.ts_ls.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- Python
+      if vim.fn.executable("pyright") == 1 then
+        lspconfig.pyright.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- Lua
+      if vim.fn.executable("lua-language-server") == 1 then
+        lspconfig.lua_ls.setup({
+          capabilities = capabilities,
+          settings = {
+            Lua = {
+              diagnostics = {
+                globals = { "vim" },
+              },
+              workspace = {
+                library = vim.api.nvim_get_runtime_file("", true),
+              },
+              telemetry = {
+                enable = false,
+              },
+            },
+          },
+        })
+      end
+
+      -- Rust
+      if vim.fn.executable("rust-analyzer") == 1 then
+        lspconfig.rust_analyzer.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- Go
+      if vim.fn.executable("gopls") == 1 then
+        lspconfig.gopls.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- C/C++
+      if vim.fn.executable("clangd") == 1 then
+        lspconfig.clangd.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- HTML
+      if vim.fn.executable("vscode-html-language-server") == 1 then
+        lspconfig.html.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- CSS
+      if vim.fn.executable("vscode-css-language-server") == 1 then
+        lspconfig.cssls.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- JSON
+      if vim.fn.executable("vscode-json-language-server") == 1 then
+        lspconfig.jsonls.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- LSP keybindings
+      vim.api.nvim_create_autocmd("LspAttach", {
+        group = vim.api.nvim_create_augroup("UserLspConfig", {}),
+        callback = function(ev)
+          local opts = { buffer = ev.buf, noremap = true, silent = true }
+
+          -- Go to definition
+          vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+          vim.keymap.set("n", "<C-]>", vim.lsp.buf.definition, opts)
+
+          -- Show hover information
+          vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
+
+          -- Find references
+          vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
+
+          -- Rename symbol
+          vim.keymap.set("n", "<F2>", vim.lsp.buf.rename, opts)
+
+          -- Code actions
+          vim.keymap.set("n", "<C-S-a>", vim.lsp.buf.code_action, opts)
+
+          -- Show diagnostics
+          vim.keymap.set("n", "<C-S-m>", vim.diagnostic.open_float, opts)
+
+          -- Navigate diagnostics
+          vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, opts)
+          vim.keymap.set("n", "]d", vim.diagnostic.goto_next, opts)
+
+          -- Register LSP commands with Legendary dynamically
+          if pcall(require, "legendary") then
+            require("legendary").keymaps({
+              {
+                "gd",
+                vim.lsp.buf.definition,
+                description = "[LSP] Go to definition",
+                mode = { "n" },
+                opts = opts,
+              },
+              {
+                "K",
+                vim.lsp.buf.hover,
+                description = "[LSP] Show hover information",
+                mode = { "n" },
+                opts = opts,
+              },
+              {
+                "gr",
+                vim.lsp.buf.references,
+                description = "[LSP] Find references",
+                mode = { "n" },
+                opts = opts,
+              },
+              {
+                "<F2>",
+                vim.lsp.buf.rename,
+                description = "[LSP] Rename symbol",
+                mode = { "n" },
+                opts = opts,
+              },
+              {
+                "[d",
+                vim.diagnostic.goto_prev,
+                description = "[LSP] Previous diagnostic",
+                mode = { "n" },
+                opts = opts,
+              },
+              {
+                "]d",
+                vim.diagnostic.goto_next,
+                description = "[LSP] Next diagnostic",
+                mode = { "n" },
+                opts = opts,
+              },
+            })
+          end
+        end,
+      })
+
+      -- Configure diagnostics display
+      vim.diagnostic.config({
+        virtual_text = true,
+        signs = true,
+        underline = true,
+        update_in_insert = false,
+        severity_sort = true,
+      })
+
+      -- Diagnostic signs
+      local signs = { Error = "✘", Warn = "▲", Hint = "⚑", Info = "»" }
+      for type, icon in pairs(signs) do
+        local hl = "DiagnosticSign" .. type
+        vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
+      end
+    end,
+  },
+
+  -- nvim-cmp - autocompletion
+  {
+    "hrsh7th/nvim-cmp",
+    event = "InsertEnter",
+    dependencies = {
+      "hrsh7th/cmp-nvim-lsp",
+      "hrsh7th/cmp-buffer",
+      "hrsh7th/cmp-path",
+      "L3MON4D3/LuaSnip",
+      "saadparwaiz1/cmp_luasnip",
+    },
+    config = function()
+      local cmp = require("cmp")
+      local luasnip = require("luasnip")
+
+      cmp.setup({
+        snippet = {
+          expand = function(args)
+            luasnip.lsp_expand(args.body)
+          end,
+        },
+        mapping = cmp.mapping.preset.insert({
+          ["<C-Space>"] = cmp.mapping.complete(),
+          ["<Esc>"] = cmp.mapping.abort(),
+          ["<CR>"] = cmp.mapping.confirm({ select = true }),
+          ["<Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+          ["<S-Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+        }),
+        sources = cmp.config.sources({
+          { name = "nvim_lsp" },
+          { name = "luasnip" },
+          { name = "buffer" },
+          { name = "path" },
+        }),
+        window = {
+          completion = cmp.config.window.bordered(),
+          documentation = cmp.config.window.bordered(),
+        },
+      })
     end,
   },
 
