@@ -116,6 +116,7 @@ require("lazy").setup({
     tag = "0.1.5",
     dependencies = {
       "nvim-lua/plenary.nvim",
+      "zane-/cder.nvim",
     },
     config = function()
       local actions = require("telescope.actions")
@@ -206,6 +207,9 @@ require("lazy").setup({
           },
         },
       })
+
+      -- Load cder extension
+      require("telescope").load_extension("cder")
     end,
   },
 
@@ -422,7 +426,7 @@ require("lazy").setup({
           --=================================================================
           {
             "<C-b>",
-            "<Cmd>NvimTreeToggle<CR>",
+            function() Snacks.picker.explorer() end,
             description = "[ACVim/File] Toggle file explorer",
             mode = { "n", "i", "v" },
             opts = opts_silent,
@@ -699,7 +703,7 @@ require("lazy").setup({
           --=================================================================
           {
             "<C-Left>",
-            "<Cmd>NvimTreeFocus<CR>",
+            function() Snacks.picker.explorer() end,
             description = "[ACVim/Navigation] Focus file tree",
             mode = { "n", "i" },
             opts = opts_silent,
@@ -735,14 +739,14 @@ require("lazy").setup({
           --=================================================================
           {
             "<C-_>",
-            "<Cmd>Oil<CR>",
+            function() require('oil').open_float(".") end,
             description = "[File] Open oil.nvim file explorer (Ctrl+-)",
             mode = { "n", "i", "v" },
             opts = opts_silent,
           },
           {
             "<C-e>",
-            "<Cmd>Oil<CR>",
+            function() require('oil').open_float(".") end,
             description = "[File] Open oil.nvim file explorer (Ctrl+E)",
             mode = { "n", "i", "v" },
             opts = opts_silent,
@@ -777,6 +781,13 @@ require("lazy").setup({
             mode = { "n", "i", "v" },
             opts = opts_silent,
           },
+          {
+            "<C-k>",
+            "<Cmd>Telescope cder<CR>",
+            description = "[Directory] Change working directory",
+            mode = { "n" },
+            opts = opts_silent,
+          },
         },
 
         commands = {
@@ -786,11 +797,11 @@ require("lazy").setup({
             description = "[File] Open oil.nvim file explorer",
           },
           {
-            ":NvimTreeToggle",
+            ":lua Snacks.picker.explorer()",
             description = "[File] Toggle file explorer",
           },
           {
-            ":NvimTreeFocus",
+            ":lua Snacks.picker.explorer()",
             description = "[File] Focus file explorer",
           },
           {
@@ -834,6 +845,10 @@ require("lazy").setup({
           {
             ":Telescope current_buffer_fuzzy_find",
             description = "[File] Search within current file",
+          },
+          {
+            ":Telescope cder",
+            description = "[Directory] Change working directory",
           },
 
           -- System Commands
@@ -1047,6 +1062,15 @@ require("lazy").setup({
         view_options = {
           show_hidden = true,
         },
+        float = {
+          padding = 2,
+          max_width = 90,
+          max_height = 30,
+          border = "rounded",
+          win_options = {
+            winblend = 0,
+          },
+        },
         keymaps = {
           ["<CR>"] = "actions.select",
           ["-"] = "actions.parent",
@@ -1054,13 +1078,18 @@ require("lazy").setup({
           ["`"] = "actions.cd",
           ["~"] = "actions.tcd",
           ["g."] = "actions.toggle_hidden",
+          ["q"] = "actions.close",
+          ["<Esc>"] = "actions.close",
         },
       })
 
-      -- Add direct keymaps after setup
-      vim.keymap.set("n", "<C-e>", "<cmd>Oil<cr>", { desc = "Open oil file explorer" })
-      vim.keymap.set("i", "<C-e>", "<cmd>Oil<cr>", { desc = "Open oil file explorer" })
-      vim.keymap.set("v", "<C-e>", "<cmd>Oil<cr>", { desc = "Open oil file explorer" })
+      -- Add direct keymaps after setup - use open_float with cwd
+      vim.keymap.set("n", "<C-e>", function() require('oil').open_float(vim.fn.getcwd()) end, { desc = "Open oil file explorer (float)" })
+      vim.keymap.set("i", "<C-e>", function() require('oil').open_float(vim.fn.getcwd()) end, { desc = "Open oil file explorer (float)" })
+      vim.keymap.set("v", "<C-e>", function() require('oil').open_float(vim.fn.getcwd()) end, { desc = "Open oil file explorer (float)" })
+      vim.keymap.set("n", "<C-_>", function() require('oil').open_float(vim.fn.getcwd()) end, { desc = "Open oil file explorer (float)" })
+      vim.keymap.set("i", "<C-_>", function() require('oil').open_float(vim.fn.getcwd()) end, { desc = "Open oil file explorer (float)" })
+      vim.keymap.set("v", "<C-_>", function() require('oil').open_float(vim.fn.getcwd()) end, { desc = "Open oil file explorer (float)" })
     end,
   },
 
@@ -1098,13 +1127,12 @@ require("lazy").setup({
     "neovim/nvim-lspconfig",
     event = { "BufReadPre", "BufNewFile" },
     dependencies = {
-      "hrsh7th/cmp-nvim-lsp",
       "williamboman/mason.nvim",
       "williamboman/mason-lspconfig.nvim",
     },
     config = function()
       local lspconfig = require("lspconfig")
-      local capabilities = require("cmp_nvim_lsp").default_capabilities()
+      local capabilities = vim.lsp.protocol.make_client_capabilities()
 
       -- Setup language servers
       -- TypeScript/JavaScript
@@ -1179,6 +1207,13 @@ require("lazy").setup({
       -- JSON
       if vim.fn.executable("vscode-json-language-server") == 1 then
         lspconfig.jsonls.setup({
+          capabilities = capabilities,
+        })
+      end
+
+      -- Bash/Shell
+      if vim.fn.executable("bash-language-server") == 1 then
+        lspconfig.bashls.setup({
           capabilities = capabilities,
         })
       end
@@ -1280,9 +1315,10 @@ require("lazy").setup({
     end,
   },
 
-  -- nvim-cmp - autocompletion
+  -- nvim-cmp - autocompletion (DISABLED)
   {
     "hrsh7th/nvim-cmp",
+    enabled = false,
     event = "InsertEnter",
     dependencies = {
       "hrsh7th/cmp-nvim-lsp",
@@ -1338,9 +1374,113 @@ require("lazy").setup({
     end,
   },
 
-  -- nvim-tree file explorer
+  -- nvim-treesitter - syntax parsing and smart selection
+  {
+    "nvim-treesitter/nvim-treesitter",
+    build = ":TSUpdate",
+    lazy = false,
+    priority = 999,
+    config = function()
+      require("nvim-treesitter.configs").setup({
+        ensure_installed = { "lua", "vim", "vimdoc", "javascript", "typescript", "python", "rust", "go", "html", "css", "json", "bash" },
+        auto_install = true,
+        highlight = {
+          enable = true,
+        },
+      })
+    end,
+  },
+
+
+  -- noice.nvim - better UI for messages, cmdline and popupmenu
+  {
+    "folke/noice.nvim",
+    event = "VeryLazy",
+    dependencies = {
+      "MunifTanjim/nui.nvim",
+      "rcarriga/nvim-notify",
+    },
+    opts = {
+      lsp = {
+        override = {
+          ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
+          ["vim.lsp.util.stylize_markdown"] = true,
+          ["cmp.entry.get_documentation"] = true,
+        },
+      },
+      presets = {
+        bottom_search = true,
+        command_palette = true,
+        long_message_to_split = true,
+        inc_rename = false,
+        lsp_doc_border = false,
+      },
+      routes = {
+        {
+          filter = {
+            event = "msg_show",
+            any = {
+              { find = "written" },
+              { find = "yanked" },
+              { find = "more line" },
+              { find = "fewer line" },
+              { find = "line less" },
+              { find = "change" },
+              { find = "indent" },
+              { find = "picker" },
+              { find = "explorer" },
+              { find = "snacks" },
+            },
+          },
+          opts = { skip = true },
+        },
+      },
+    },
+  },
+
+  -- snacks.nvim - modern UI components including file explorer
+  {
+    "folke/snacks.nvim",
+    priority = 1000,
+    lazy = false,
+    opts = {
+      bigfile = { enabled = true },
+      explorer = {
+        enabled = true,
+      },
+      picker = {
+        enabled = true,
+        matcher = {
+          cwd_bonus = true,
+        },
+        win = {
+          list = {
+            wo = {
+              number = false,
+              relativenumber = false,
+              signcolumn = "no",
+              foldcolumn = "0",
+            },
+          },
+        },
+      },
+      notifier = { enabled = true },
+      quickfile = { enabled = true },
+      statuscolumn = {
+        enabled = true,
+        folds = {
+          open = true,  -- Show open fold icons
+          git_hl = false,
+        },
+      },
+      words = { enabled = true },
+    },
+  },
+
+  -- nvim-tree file explorer (DISABLED - using snacks explorer instead)
   {
     "nvim-tree/nvim-tree.lua",
+    enabled = false,
     version = "*",
     lazy = false,
     dependencies = {
@@ -1508,6 +1648,9 @@ vim.api.nvim_create_autocmd("VimEnter", {
 vim.opt.number = true
 vim.opt.relativenumber = false
 
+-- Disable text wrapping
+vim.opt.wrap = false
+
 -- Disable Neovim's clipboard integration to avoid conflicts
 -- We'll handle clipboard operations manually with pbcopy/pbpaste
 vim.opt.clipboard = ''
@@ -1519,26 +1662,35 @@ vim.opt.mouse = 'a'
 vim.opt.splitright = true
 vim.opt.splitbelow = true
 
+-- Enable folding
+vim.opt.foldmethod = 'indent'  -- Fold based on indentation
+vim.opt.foldlevel = 99         -- Start with all folds open
+vim.opt.foldenable = true      -- Enable folding
+vim.opt.foldcolumn = '1'       -- Show fold column
+
+-- Always start in insert mode (unless in visual mode or disabled)
+vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter"}, {
+  pattern = "*",
+  callback = function()
+    if vim.g.disable_auto_insert then
+      return
+    end
+    local mode = vim.fn.mode()
+    if vim.bo.buftype == "" and mode ~= 'v' and mode ~= 'V' and mode ~= '\22' then
+      vim.cmd("startinsert")
+    end
+  end,
+})
+
+-- Disable Esc from exiting insert mode
+vim.keymap.set('i', '<Esc>', '<Nop>', { noremap = true, silent = true })
 
 -- Make line number column extend the full height of the window like VS Code
 vim.opt.signcolumn = 'yes'
 vim.opt.numberwidth = 4  -- Minimum width for line number column
 
--- Show line numbers on empty lines (like VS Code)
--- We need to use a custom function to achieve this
-local function setup_line_numbers()
-  -- Create an autocmd to show line numbers on empty lines
-  vim.api.nvim_create_autocmd({'BufEnter', 'BufWinEnter', 'WinEnter'}, {
-    callback = function()
-      -- Force line numbers to be shown
-      vim.wo.number = true
-      -- Remove the ~ characters from empty lines and show line numbers instead
-      vim.wo.fillchars = 'eob: '
-    end,
-  })
-end
-
-setup_line_numbers()
+-- Remove the ~ characters from empty lines
+vim.opt.fillchars = 'eob: '
 
 -- Fix multi-line deletion in visual mode
 -- Delete key in visual mode should delete selection
@@ -1600,6 +1752,11 @@ vim.cmd([[
     let lines[0] = lines[0][column_start - 1:]
     return join(lines, "\n")
   endfunction
+
+  " Command mode access via Ctrl+; (easier to access in insert mode)
+  " Note: Some terminals can't distinguish Ctrl+: so we use Ctrl+;
+  inoremap <C-;> <C-o>:
+  inoremap <C-:> <C-o>:
 
   " Map Cmd+C for copy to system clipboard (using escape sequences from Alacritty)
   nnoremap <Esc>[1;5C :call CopyToClipboard(getline('.'))<CR>a
@@ -1676,10 +1833,10 @@ vim.cmd([[
 
   " VS Code-style Shift+Arrow key selection
   " Start selection with Shift+Arrow keys from insert mode
-  inoremap <S-Left> <Esc>v<Left>
-  inoremap <S-Right> <Esc>v<Right>
-  inoremap <expr> <S-Up> SmartShiftUp()
-  inoremap <expr> <S-Down> SmartShiftDown()
+  inoremap <S-Left> <C-o>v<Left>
+  inoremap <S-Right> <C-o>v<Right>
+  inoremap <S-Up> <C-o>v<Up>
+  inoremap <S-Down> <C-o>v<Down>
 
   " Extend selection with Shift+Arrow keys in visual mode
   vnoremap <S-Left> <Left>
@@ -1687,7 +1844,7 @@ vim.cmd([[
   vnoremap <S-Up> <Up>
   vnoremap <S-Down> <Down>
 
-  " Start selection from normal mode with smart edge handling
+  " Start selection from normal mode with smart edge handling (return to insert)
   nnoremap <S-Left> v<Left>
   nnoremap <S-Right> v<Right>
   nnoremap <expr> <S-Up> line('.') == 1 ? '0V' : 'v<Up>'
@@ -1709,11 +1866,11 @@ vim.cmd([[
   nnoremap <S-Home> v^
   nnoremap <S-End> v$
 
-  " Arrow keys without Shift should cancel selection and move cursor
-  vnoremap <Left> <Esc><Left>
-  vnoremap <Right> <Esc><Right>
-  vnoremap <Up> <Esc><Up>
-  vnoremap <Down> <Esc><Down>
+  " Arrow keys without Shift should cancel selection and move cursor (stay in insert mode)
+  vnoremap <Left> <Esc><Left>i
+  vnoremap <Right> <Esc><Right>i
+  vnoremap <Up> <Esc><Up>i
+  vnoremap <Down> <Esc><Down>i
 
   " Typing to replace selected text - use a more targeted approach
   " Map common characters that users type to replace selections
@@ -1867,21 +2024,16 @@ vim.cmd([[
   nnoremap <c-Home> gg
   nnoremap <c-End> G
 
-  " File Explorer (nvim-tree) keybindings
+  " File Explorer (snacks) keybindings
   " Ctrl+B: Toggle file explorer (like VS Code sidebar)
-  nnoremap <c-b> :NvimTreeToggle<CR>a
-  inoremap <c-b> <c-o>:NvimTreeToggle<CR>
-  vnoremap <c-b> <Esc>:NvimTreeToggle<CR>
-
-  " Ctrl+Shift+E: Focus file explorer
-  nnoremap <c-s-e> :NvimTreeFocus<CR>
-  inoremap <c-s-e> <c-o>:NvimTreeFocus<CR>
-  vnoremap <c-s-e> <Esc>:NvimTreeFocus<CR>
+  nnoremap <c-b> :lua Snacks.picker.explorer()<CR>
+  inoremap <c-b> <c-o>:lua Snacks.picker.explorer()<CR>
+  vnoremap <c-b> <Esc>:lua Snacks.picker.explorer()<CR>
 
   " Pane navigation with Ctrl+Arrow keys
-  " Ctrl+Left: Focus nvim-tree (if open)
-  nnoremap <c-Left> :NvimTreeFocus<CR>
-  inoremap <c-Left> <c-o>:NvimTreeFocus<CR>
+  " Ctrl+Left: Focus snacks explorer (if open)
+  nnoremap <c-Left> :lua Snacks.picker.explorer()<CR>
+  inoremap <c-Left> <c-o>:lua Snacks.picker.explorer()<CR>
 
   " Ctrl+Right: Focus editor pane (from tree)
   nnoremap <c-Right> :wincmd l<CR>
@@ -1912,10 +2064,8 @@ vim.cmd([[
 
   " Smart Ctrl+Q: Check for unsaved changes and prompt to save
   function! SmartQuit()
-    " Close nvim-tree if it's open
-    if exists(':NvimTreeClose')
-      NvimTreeClose
-    endif
+    " Close snacks picker if it's open
+    lua if Snacks and Snacks.picker then pcall(function() Snacks.picker.close() end) end
 
     " Check for any modified buffers
     let modified_buffers = []
